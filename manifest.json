@@ -1,0 +1,18 @@
+{
+  "name": "Espacio de Calma",
+  "short_name": "Calma",
+  "description": "App de apoyo emocional y bienestar para acompañamiento en crisis.",
+  "start_url": "gen.html",
+  "display": "fullscreen",
+  "background_color": "#f2f5f8",
+  "theme_color": "#8baecf",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3094/3094411.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

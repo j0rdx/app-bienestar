@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Espacio de Calma</title>
+    
+    <!-- Vinculación del Manifiesto PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#8baecf">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <!-- Registro del Service Worker -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('Service Worker registrado con éxito', reg))
+                    .catch(err => console.error('Error al registrar Service Worker', err));
+            });
+        }
+    </script>
+
+    <!-- Iconos Lucide para un diseño limpio y moderno -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --bg-principal: #f2f5f8;
+            --bg-tarjeta: #ffffff;
+            --texto-principal: #2d3748;
+            --texto-secundario: #4a5568;
+            --color-acento: #8baecf;
+            --color-borde: #e2e8f0;
+            --particula-color: rgba(139, 174, 207, 0.4);
+        }
+
+        [data-theme="dark"] {
+            --bg-principal: #1a202c;
+            --bg-tarjeta: #2d3748;
+            --texto-principal: #f7fafc;
+            --texto-secundario: #e2e8f0;
+            --color-acento: #a0aec0;
+            --color-borde: #4a5568;
+            --particula-color: rgba(255, 255, 255, 0.2);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-principal);
+            color: var(--texto-principal);
+            transition: background-color 0.5s ease, color 0.5s ease;
+        }
+
+        #canvas-particulas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .app-container {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            height: 100%;
+            max-width: 480px;
+            margin: 0 auto;
+            padding: 24px;
+            padding-bottom: calc(24px + env(safe-area-inset-bottom));
+            padding-top: calc(24px + env(safe-area-inset-top));
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            height: 40px;
+            margin-bottom: 20px;
+            z-index: 20;
+        }
+
+        .icono-tema-contenedor {
+            color: var(--texto-principal);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+        }
+
+        .pantallas-wrapper {
+            flex: 1;
+            position: relative;
+            width: 100%;
+        }
+
+        .pantalla {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            flex-direction: column;
+            justify-content: space-between;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .pantalla.activa {
+            display: flex;
+            opacity: 1;
+        }
+
+        .zona-mensaje {
+            text-align: center;
+            margin: auto 0;
+            padding: 0 10px;
+        }
+
+        .mensaje-calma {
+            font-size: 1.35rem;
+            line-height: 1.6;
+            font-weight: 400;
+            color: var(--texto-principal);
+        }
+
+        .sub-mensaje {
+            font-size: 0.95rem;
+            color: var(--texto-secundario);
+            margin-top: 16px;
+        }
+
+        .zona-botones {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            width: 100%;
+            margin-bottom: 20px;
+            z-index: 30;
+        }
+
+        .btn {
+            background-color: var(--bg-tarjeta);
+            color: var(--texto-principal);
+            border: 1px solid var(--color-borde);
+            padding: 16px 24px;
+            border-radius: 16px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            pointer-events: auto;
+        }
+
+        .btn-primario {
+            background-color: var(--color-acento);
+            color: white;
+            border: none;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-home-style {
+            padding: 8px 16px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+        }
+
+        .select-personalizado {
+            background-color: var(--bg-tarjeta);
+            color: var(--texto-principal);
+            border: 1px solid var(--color-borde);
+            padding: 12px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            width: 100%;
+            margin-bottom: 12px;
+            outline: none;
+            pointer-events: auto;
+        }
+
+        .contenedor-respiracion {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin: auto 0;
+        }
+
+        .circulo-respiracion {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: var(--color-acento);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.1rem;
+            font-weight: bold;
+            transition: transform 1s ease-in-out;
+            box-shadow: 0 0 30px var(--particula-color);
+        }
+
+        .instruccion-respirar {
+            margin-top: 24px;
+            font-size: 1.25rem;
+            font-weight: 500;
+            text-align: center;
+            height: 30px;
+        }
+
+        .contador-enraizamiento {
+            font-size: 4.5rem;
+            font-weight: 700;
+            color: var(--color-acento);
+            text-align: center;
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="canvas-particulas"></canvas>
+
+    <div class="app-container">
+        <div class="header">
+            <div class="icono-tema-contenedor" id="contenedor-icono-tema" onclick="cambiarTema()" style="cursor: pointer;">
+                <i data-lucide="moon" id="icono-tema"></i>
+            </div>
+            <button class="btn btn-home-style" id="btn-home" style="display: none;" onclick="irAlMenu()">
+                <i data-lucide="home"></i> Inicio
+            </button>
+        </div>
+
+        <div class="pantallas-wrapper">
+            <div id="pantalla-bienvenida" class="pantalla activa">
+                <div class="zona-mensaje">
+                    <p class="mensaje-calma">Estás en un lugar seguro. No hay prisa ni expectativas aquí. Solo respira a tu propio ritmo.</p>
+                    <p class="sub-mensaje">Cuando sientas la preparación para continuar, presiona el botón de abajo.</p>
+                </div>
+                <div class="zona-botones">
+                    <button class="btn btn-primario" id="btn-bienvenida-continuar" onclick="navegarA('pantalla-menu')">Continuar</button>
+                </div>
+            </div>
+
+            <div id="pantalla-menu" class="pantalla">
+                <div class="zona-mensaje">
+                    <p class="mensaje-calma">Elige un espacio de apoyo para este momento</p>
+                </div>
+                <div class="zona-botones">
+                    <button class="btn" onclick="abrirRespiracion()">
+                        <i data-lucide="wind"></i> Control de Relajación Interactiva
+                    </button>
+                    <button class="btn" onclick="iniciarEnraizamiento()">
+                        <i data-lucide="shield"></i> Técnica de Enraizamiento (5-4-3-2-1)
+                    </button>
+                </div>
+            </div>
+
+            <div id="pantalla-respiracion" class="pantalla">
+                <div>
+                    <label style="font-size: 0.85rem; color: var(--texto-secundario); display:block; margin-bottom:4px;">Selecciona el modo de respiración:</label>
+                    <select id="select-tecnica" class="select-personalizado" onchange="actualizarConfiguracionRespirar()">
+                        <option value="478">Respiración 4-7-8</option>
+                        <option value="profunda">Respiración Profunda</option>
+                        <option value="cuadrada">Respiración Cuadrada</option>
+                        <option value="equilibrada">Respiración Equilibrada</option>
+                    </select>
+
+                    <label style="font-size: 0.85rem; color: var(--texto-secundario); display:block; margin-bottom:4px;">Añadir sonido relajante:</label>
+                    <select id="select-sonido" class="select-personalizado" onchange="gestionarSonido()">
+                        <option value="ninguno">Sin sonido</option>
+                        <option value="lluvia">Lluvia suave (Ruido blanco orgánico)</option>
+                    </select>
+                </div>
+
+                <div class="contenedor-respiracion">
+                    <div class="circulo-respiracion" id="circulo-respirar"></div>
+                    <div class="instruccion-respirar" id="txt-instruccion">Presiona Iniciar</div>
+                </div>
+
+                <div class="zona-botones">
+                    <button class="btn btn-primario" id="btn-control-respirar" onclick="conmutarCicloRespiracion()">Iniciar Ciclos Automáticos</button>
+                </div>
+            </div>
+
+            <div id="pantalla-enraizamiento" class="pantalla">
+                <div class="zona-mensaje" id="contenido-enraizamiento"></div>
+                <div class="zona-botones">
+                    <button class="btn btn-primario" id="btn-enraizamiento-accion" onclick="siguientePasoEnraizamiento()">Continuar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let pantallaActual = 'pantalla-bienvenida';
+
+        function navegarA(idPantalla) {
+            document.getElementById(pantallaActual).classList.remove('activa');
+            const proximaPantalla = document.getElementById(idPantalla);
+            proximaPantalla.classList.add('activa');
+            pantallaActual = idPantalla;
+
+            document.getElementById('btn-home').style.display = 
+                (idPantalla !== 'pantalla-bienvenida' && idPantalla !== 'pantalla-menu') ? 'block' : 'none';
+            
+            if(idPantalla !== 'pantalla-respiracion') detenterRespiracion();
+        }
+
+        function irAlMenu() {
+            navegarA('pantalla-menu');
+        }
+
+        let modoOscuroActivo = false;
+        function cambiarTema() {
+            const body = document.documentElement;
+            const icono = document.getElementById('icono-tema');
+            modoOscuroActivo = !modoOscuroActivo;
+            
+            if (!modoOscuroActivo) {
+                body.removeAttribute('data-theme');
+                icono.setAttribute('data-lucide', 'moon');
+            } else {
+                body.setAttribute('data-theme', 'dark');
+                icono.setAttribute('data-lucide', 'sun');
+            }
+            lucide.createIcons();
+        }
+
+        const canvas = document.getElementById('canvas-particulas');
+        const ctx = canvas.getContext('2d');
+        let particulas = [];
+
+        function redimensionarCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', redimensionarCanvas);
+        redimensionarCanvas();
+
+        class Particula {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.radio = Math.random() * 3.5 + 1;
+                this.velocidadX = Math.random() * 0.4 - 0.2;
+                this.velocidadY = Math.random() * 0.2 - 0.4;
+            }
+            actualizar() {
+                this.x += this.velocidadX;
+                this.y += this.velocidadY;
+                if (this.y < 0) this.y = canvas.height;
+                if (this.x < 0 || this.x > canvas.width) this.x = Math.random() * canvas.width;
+            }
+            dibujar() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radio, 0, Math.PI * 2);
+                ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--particula-color').trim() || 'rgba(139, 174, 207, 0.4)';
+                ctx.fill();
+            }
+        }
+
+        for (let i = 0; i < 35; i++) { particulas.push(new Particula()); }
+
+        function animarParticulas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particulas.forEach(p => {
+                p.actualizar();
+                p.dibujar();
+            });
+            requestAnimationFrame(animarParticulas);
+        }
+        animarParticulas();
+
+        let audioCtx = null;
+        let nodoRuido = null;
+
+        function gestionarSonido() {
+            const seleccion = document.getElementById('select-sonido').value;
+            if (seleccion === 'lluvia') {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (!nodoRuido) {
+                    const tamañoBuffer = 2 * audioCtx.sampleRate;
+                    const buffer = audioCtx.createBuffer(1, tamañoBuffer, audioCtx.sampleRate);
+                    const data = buffer.getChannelData(0);
+                    let ultimoOut = 0.0;
+                    for (let i = 0; i < tamañoBuffer; i++) {
+                        const blanco = Math.random() * 2 - 1;
+                        data[i] = (ultimoOut + (0.015 * blanco)) / 1.015;
+                        ultimoOut = data[i];
+                        data[i] *= 4.0;
+                    }
+                    nodoRuido = audioCtx.createBufferSource();
+                    nodoRuido.buffer = buffer;
+                    nodoRuido.loop = true;
+                    
+                    const filtro = audioCtx.createBiquadFilter();
+                    filtro.type = 'lowpass';
+                    filtro.frequency.value = 800;
+
+                    nodoRuido.connect(filtro);
+                    filtro.connect(audioCtx.destination);
+                    nodoRuido.start();
+                }
+            } else {
+                if (nodoRuido) {
+                    nodoRuido.stop();
+                    nodoRuido.disconnect();
+                    nodoRuido = null;
+                }
+            }
+        }
+
+        let intervaloRespirar = null;
+        let ejecutandoRespiracion = false;
+        const circulo = document.getElementById('circulo-respirar');
+        const txtInstruccion = document.getElementById('txt-instruccion');
+        
+        const tecnicas = {
+            '478': [ { estado: 'Inhala', t: 4, s: 1.3 }, { estado: 'Retén', t: 7, s: 1.3 }, { estado: 'Exhala', t: 8, s: 0.8 } ],
+            'profunda': [ { estado: 'Inhala profundamente', t: 5, s: 1.4 }, { estado: 'Exhala soltando el aire', t: 5, s: 0.8 } ],
+            'cuadrada': [ { estado: 'Inhala', t: 4, s: 1.3 }, { estado: 'Retén el aire', t: 4, s: 1.3 }, { estado: 'Exhala el aire', t: 4, s: 0.8 }, { estado: 'Mantén vacío', t: 4, s: 0.8 } ],
+            'equilibrada': [ { estado: 'Inhala de forma pausada', t: 4, s: 1.2 }, { estado: 'Exhala al mismo ritmo', t: 4, s: 0.8 } ]
+        };
+
+        function abrirRespiracion() {
+            navegarA('pantalla-respiracion');
+            actualizarConfiguracionRespirar();
+        }
+
+        function actualizarConfiguracionRespirar() {
+            detenterRespiracion();
+            txtInstruccion.innerText = "Presiona iniciar";
+            circulo.style.transform = 'scale(0.8)';
+        }
+
+        function conmutarCicloRespiracion() {
+            const btn = document.getElementById('btn-control-respirar');
+            if (ejecutandoRespiracion) {
+                detenterRespiracion();
+                btn.innerText = "Iniciar Ciclos Automáticos";
+            } else {
+                ejecutandoRespiracion = true;
+                btn.innerText = "Detener Ciclos";
+                ejecutarCiclo();
+            }
+        }
+
+        function detenterRespiracion() {
+            ejecutandoRespiracion = false;
+            clearTimeout(intervaloRespirar);
+            if(circulo) circulo.style.transform = 'scale(0.8)';
+            const btn = document.getElementById('btn-control-respirar');
+            if(btn) btn.innerText = "Iniciar Ciclos Automáticos";
+            if(txtInstruccion) txtInstruccion.innerText = "Presiona iniciar";
+        }
+
+        function ejecutarCiclo() {
+            if (!ejecutandoRespiracion) return;
+            const tipo = document.getElementById('select-tecnica').value;
+            const pasos = tecnicas[tipo];
+            let pasoActual = 0;
+
+            function correrPaso() {
+                if (!ejecutandoRespiracion) return;
+                const p = pasos[pasoActual];
+                txtInstruccion.innerText = `${p.estado} (${p.t}s)`;
+                circulo.style.transform = `scale(${p.s})`;
+                circulo.style.transition = `transform ${p.t}s linear`;
+
+                intervaloRespirar = setTimeout(() => {
+                    pasoActual = (pasoActual + 1) % pasos.length;
+                    correrPaso();
+                }, p.t * 1000);
+            }
+            correrPaso();
+        }
+
+        let pasoEnraizamiento = 0;
+        const pasosEnraizamiento = [
+            { n: 5, texto: "Busca y observa 5 cosas que puedas ver a tu alrededor. Fíjate en los detalles de sus texturas y colores.", boton: "Sí, las veo" },
+            { n: 4, texto: "Identifica 4 cosas que puedas escuchar. Presta atención al sonido más lejano o al más cercano.", boton: "Sí, las escucho" },
+            { n: 3, texto: "Encuentra 3 cosas que puedas oler. Inhala aire profundamente tratando de notar algún olor ambiental.", boton: "Sí, las huelo" },
+            { n: 2, texto: "Presta atención a 2 cosas que puedas sentir físicamente. El calzado presionando el piso o tu propia respiración.", boton: "Sí, las siento" },
+            { n: 1, texto: "Reconoce 1 cosa que puedas saborear. Pasa saliva conscientemente o saborea un sorbo de agua.", boton: "Listo" }
+        ];
+
+        function iniciarEnraizamiento() {
+            pasoEnraizamiento = 0;
+            navegarA('pantalla-enraizamiento');
+            mostrarPasoEnraizamiento();
+        }
+
+        function mostrarPasoEnraizamiento() {
+            const contenedor = document.getElementById('contenido-enraizamiento');
+            const boton = document.getElementById('btn-enraizamiento-accion');
+            const info = pasosEnraizamiento[pasoEnraizamiento];
+
+            contenedor.innerHTML = `
+                <div class="contador-enraizamiento">${info.n}</div>
+                <p class="mensaje-calma">${info.texto}</p>
+            `;
+            boton.innerText = info.boton;
+        }
+
+        function siguientePasoEnraizamiento() {
+            pasoEnraizamiento++;
+            if (pasoEnraizamiento < pasosEnraizamiento.length) {
+                mostrarPasoEnraizamiento();
+            } else {
+                const contenedor = document.getElementById('contenido-enraizamiento');
+                const boton = document.getElementById('btn-enraizamiento-accion');
+                contenedor.innerHTML = `
+                    <div style="font-size: 3.5rem; color: var(--color-acento); margin-bottom:16px;">✓</div>
+                    <p class="mensaje-calma">Buen trabajo. Estás aquí, en el presente, recuperando tu centro de forma segura.</p>
+                `;
+                boton.innerText = "Volver al menú";
+                boton.onclick = function() {
+                    boton.onclick = siguientePasoEnraizamiento;
+                    irAlMenu();
+                };
+            }
+        }
+
+        lucide.createIcons();
+    </script>
+</body>
+</html>
