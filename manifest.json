@@ -2,7 +2,7 @@
   "name": "Espacio de Calma",
   "short_name": "Calma",
   "description": "App de apoyo emocional y bienestar para acompañamiento en crisis.",
-  "start_url": "gen.html",
+  "start_url": "index.html",
   "display": "fullscreen",
   "background_color": "#f2f5f8",
   "theme_color": "#8baecf",
