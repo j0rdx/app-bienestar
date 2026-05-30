@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mj-studio-cache-v2'; // Cambiamos a v2 para forzar la actualización
+const CACHE_NAME = 'mj-studio-cache-v3'; // Cambiamos a v2 para forzar la actualización
 const ASSETS_TO_CACHE = [
   'index.html',
   'manifest.json',
